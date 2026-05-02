@@ -7,6 +7,8 @@ import { pinoHttp } from "pino-http";
 
 import { logger } from "./lib/logger.js";
 import { healthRouter } from "./routes/health.js";
+import { notificationsRouter } from "./routes/notifications.js";
+import { ZodError } from "zod";
 
 export function createApp() {
   const app = express();
@@ -35,8 +37,17 @@ export function createApp() {
   });
 
   app.use("/health", healthRouter);
+  app.use("/notifications", notificationsRouter);
 
   app.use((error: Error, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    if (error instanceof ZodError) {
+      response.status(400).json({
+        error: "Invalid request",
+        details: error.flatten()
+      });
+      return;
+    }
+
     logger.error({ err: error }, "Unhandled application error");
 
     response.status(500).json({
