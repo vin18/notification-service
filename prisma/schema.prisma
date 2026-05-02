@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Channel {
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  RETRYING
+  SKIPPED
+}
+
+enum DeliveryAttemptStatus {
+  SUCCESS
+  FAILURE
+}
+
+model User {
+  id            String           @id @default(cuid())
+  tenantId      String           @map("tenant_id")
+  email         String           @unique
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  preferences   UserPreference[]
+  notifications Notification[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  channel   Channel
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
+  @@index([userId])
+  @@map("user_preferences")
+}
+
+model Notification {
+  id                String             @id @default(cuid())
+  tenantId          String             @map("tenant_id")
+  userId            String             @map("user_id")
+  channel           Channel
+  subject           String
+  body              String
+  status            NotificationStatus @default(PENDING)
+  scheduledAt       DateTime?          @map("scheduled_at")
+  sentAt            DateTime?          @map("sent_at")
+  failureReason     String?            @map("failure_reason")
+  providerMessageId String?            @map("provider_message_id")
+  idempotencyKey    String             @map("idempotency_key")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts          DeliveryAttempt[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("notifications")
+}
+
+model DeliveryAttempt {
+  id             String                @id @default(cuid())
+  notificationId String                @map("notification_id")
+  attemptNumber  Int                   @map("attempt_number")
+  provider       String
+  status         DeliveryAttemptStatus
+  errorMessage   String?               @map("error_message")
+  startedAt      DateTime              @default(now()) @map("started_at")
+  finishedAt     DateTime?             @map("finished_at")
+  notification   Notification          @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@map("delivery_attempts")
+}

@@ -1,0 +1,48 @@
+import crypto from "node:crypto";
+
+import cors from "cors";
+import express from "express";
+import type { Request } from "express";
+import { pinoHttp } from "pino-http";
+
+import { logger } from "./lib/logger.js";
+import { healthRouter } from "./routes/health.js";
+
+export function createApp() {
+  const app = express();
+
+  app.disable("x-powered-by");
+  app.use(cors());
+  app.use(express.json({ limit: "1mb" }));
+  app.use(
+    pinoHttp({
+      logger,
+      genReqId: (request: Request) => {
+        const headerRequestId = request.headers["x-request-id"];
+        return typeof headerRequestId === "string" && headerRequestId.length > 0
+          ? headerRequestId
+          : crypto.randomUUID();
+      }
+    })
+  );
+
+  app.get("/", (_request, response) => {
+    response.json({
+      name: "notification-service",
+      version: "0.1.0",
+      message: "Notification service foundation is running"
+    });
+  });
+
+  app.use("/health", healthRouter);
+
+  app.use((error: Error, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+    logger.error({ err: error }, "Unhandled application error");
+
+    response.status(500).json({
+      error: "Internal Server Error"
+    });
+  });
+
+  return app;
+}
