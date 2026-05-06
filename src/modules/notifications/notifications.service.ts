@@ -105,7 +105,14 @@ export async function createNotification(input: CreateNotificationInput): Promis
 
 export async function getNotificationById(id: string) {
   return prisma.notification.findUnique({
-    where: { id }
+    where: { id },
+    include: {
+      attempts: {
+        orderBy: {
+          attemptNumber: "asc"
+        }
+      }
+    }
   });
 }
 

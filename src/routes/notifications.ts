@@ -57,12 +57,26 @@ function serializeNotification(notification: {
   idempotencyKey: string;
   createdAt: Date;
   updatedAt: Date;
+  attempts?: Array<{
+    id: string;
+    attemptNumber: number;
+    provider: string;
+    status: string;
+    errorMessage: string | null;
+    startedAt: Date;
+    finishedAt: Date | null;
+  }>;
 }) {
   return {
     ...notification,
     scheduledAt: notification.scheduledAt?.toISOString() ?? null,
     sentAt: notification.sentAt?.toISOString() ?? null,
     createdAt: notification.createdAt.toISOString(),
-    updatedAt: notification.updatedAt.toISOString()
+    updatedAt: notification.updatedAt.toISOString(),
+    attempts: notification.attempts?.map((attempt) => ({
+      ...attempt,
+      startedAt: attempt.startedAt.toISOString(),
+      finishedAt: attempt.finishedAt?.toISOString() ?? null
+    })) ?? []
   };
 }

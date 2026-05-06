@@ -5,7 +5,7 @@ import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { pgPool } from "./lib/postgres.js";
 import { prisma } from "./lib/prisma.js";
-import { notificationQueue } from "./lib/queue.js";
+import { bullmqConnection, notificationQueue } from "./lib/queue.js";
 import { redis } from "./lib/redis.js";
 
 const app = createApp();
@@ -27,6 +27,7 @@ async function shutdown(signal: string) {
     try {
       await Promise.all([
         notificationQueue.close(),
+        bullmqConnection.quit(),
         prisma.$disconnect(),
         pgPool.end(),
         redis.quit()

@@ -9,7 +9,10 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   REDIS_URL: z.string().min(1, "REDIS_URL is required"),
-  NOTIFICATION_QUEUE_NAME: z.string().min(1).default("notification-delivery")
+  NOTIFICATION_QUEUE_NAME: z.string().min(1).default("notification-delivery"),
+  EMAIL_PROVIDER: z.enum(["mock", "resend"]).default("mock"),
+  EMAIL_FROM: z.string().email("EMAIL_FROM must be a valid email"),
+  RESEND_API_KEY: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);
