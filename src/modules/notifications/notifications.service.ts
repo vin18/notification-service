@@ -116,6 +116,26 @@ export async function getNotificationById(id: string) {
   });
 }
 
+export async function getFailedNotifications(input: { limit: number; tenantId?: string }) {
+  return prisma.notification.findMany({
+    where: {
+      status: NotificationStatus.FAILED,
+      ...(input.tenantId ? { tenantId: input.tenantId } : {})
+    },
+    orderBy: {
+      updatedAt: "desc"
+    },
+    take: input.limit,
+    include: {
+      attempts: {
+        orderBy: {
+          attemptNumber: "asc"
+        }
+      }
+    }
+  });
+}
+
 function isNotificationIdempotencyConflict(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError
     && error.code === "P2002"

@@ -10,6 +10,7 @@ import { HttpError } from "./lib/http-errors.js";
 import { healthRouter } from "./routes/health.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { preferencesRouter } from "./routes/preferences.js";
+import { notificationRateLimitMiddleware } from "./lib/rate-limit.js";
 import { ZodError } from "zod";
 
 export function createApp() {
@@ -26,9 +27,16 @@ export function createApp() {
         return typeof headerRequestId === "string" && headerRequestId.length > 0
           ? headerRequestId
           : crypto.randomUUID();
-      }
+      },
+      customProps: (request) => ({
+        requestId: request.id
+      })
     })
   );
+  app.use((request, response, next) => {
+    response.setHeader("X-Request-Id", String(request.id));
+    next();
+  });
 
   app.get("/", (_request, response) => {
     response.json({
@@ -39,7 +47,7 @@ export function createApp() {
   });
 
   app.use("/health", healthRouter);
-  app.use("/notifications", notificationsRouter);
+  app.use("/notifications", notificationRateLimitMiddleware, notificationsRouter);
   app.use("/users", preferencesRouter);
 
   app.use((error: Error, _request: express.Request, response: express.Response, _next: express.NextFunction) => {

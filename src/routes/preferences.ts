@@ -11,6 +11,14 @@ preferencesRouter.get("/:id/preferences", async (request, response, next) => {
     const { id } = userParamsSchema.parse(request.params);
     const preferences = await getUserPreferences(id);
 
+    request.log.info(
+      {
+        userId: id,
+        preferenceCount: preferences.length
+      },
+      "Fetched user preferences"
+    );
+
     response.json({
       data: preferences.map(serializePreference)
     });
@@ -24,6 +32,15 @@ preferencesRouter.put("/:id/preferences", async (request, response, next) => {
     const { id } = userParamsSchema.parse(request.params);
     const input = updatePreferenceSchema.parse(request.body);
     const preference = await upsertUserPreference(id, input);
+
+    request.log.info(
+      {
+        userId: id,
+        channel: preference.channel,
+        enabled: preference.enabled
+      },
+      "Updated user preference"
+    );
 
     response.json({
       data: serializePreference(preference)

@@ -12,7 +12,9 @@ const envSchema = z.object({
   NOTIFICATION_QUEUE_NAME: z.string().min(1).default("notification-delivery"),
   EMAIL_PROVIDER: z.enum(["mock", "resend"]).default("mock"),
   EMAIL_FROM: z.string().email("EMAIL_FROM must be a valid email"),
-  RESEND_API_KEY: z.string().optional()
+  RESEND_API_KEY: z.string().optional(),
+  RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30)
 });
 
 const parsed = envSchema.safeParse(process.env);

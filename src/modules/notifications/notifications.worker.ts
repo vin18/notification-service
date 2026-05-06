@@ -127,7 +127,9 @@ export async function processNotification(notificationId: string) {
         notificationId,
         userId: notification.userId,
         provider: env.EMAIL_PROVIDER,
-        providerMessageId: result.providerMessageId
+        providerMessageId: result.providerMessageId,
+        tenantId: notification.tenantId,
+        attemptNumber: currentAttempt
       },
       "Notification sent successfully"
     );
@@ -165,7 +167,8 @@ export async function processNotification(notificationId: string) {
         notificationId,
         userId: notification.userId,
         provider: env.EMAIL_PROVIDER,
-        attemptNumber: currentAttempt
+        attemptNumber: currentAttempt,
+        tenantId: notification.tenantId
       },
       "Notification delivery failed"
     );

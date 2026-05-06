@@ -10,7 +10,14 @@ const worker = createNotificationWorker(async (job) => {
 });
 
 worker.on("completed", (job) => {
-  logger.info({ jobId: job.id, notificationId: job.data.notificationId }, "Worker completed notification job");
+  logger.info(
+    {
+      jobId: job.id,
+      notificationId: job.data.notificationId,
+      attemptsMade: job.attemptsMade
+    },
+    "Worker completed notification job"
+  );
 });
 
 worker.on("failed", async (job, error) => {
@@ -35,7 +42,8 @@ worker.on("failed", async (job, error) => {
       err: error,
       jobId: job.id,
       notificationId: job.data.notificationId,
-      attemptsMade: job.attemptsMade
+      attemptsMade: job.attemptsMade,
+      willRetry: job.opts.attempts !== undefined && job.attemptsMade < job.opts.attempts
     },
     "Worker failed notification job"
   );

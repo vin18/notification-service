@@ -1,8 +1,16 @@
 import { Router } from "express";
 
 import { serializeNotification } from "../modules/notifications/notifications.presenter.js";
-import { createNotificationSchema, notificationParamsSchema } from "../modules/notifications/notifications.schemas.js";
-import { createNotification, getNotificationById } from "../modules/notifications/notifications.service.js";
+import {
+  createNotificationSchema,
+  failedNotificationsQuerySchema,
+  notificationParamsSchema
+} from "../modules/notifications/notifications.schemas.js";
+import {
+  createNotification,
+  getFailedNotifications,
+  getNotificationById
+} from "../modules/notifications/notifications.service.js";
 
 export const notificationsRouter = Router();
 
@@ -11,12 +19,45 @@ notificationsRouter.post("/", async (request, response, next) => {
     const input = createNotificationSchema.parse(request.body);
     const result = await createNotification(input);
 
+    request.log.info(
+      {
+        notificationId: result.notification.id,
+        tenantId: result.notification.tenantId,
+        userId: result.notification.userId,
+        queueJobId: result.queueJobId ?? null,
+        duplicate: result.duplicate
+      },
+      "Notification accepted"
+    );
+
     response.status(202).json({
       data: serializeNotification(result.notification),
       meta: {
         duplicate: result.duplicate,
         queueJobId: result.queueJobId ?? null
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+notificationsRouter.get("/failed", async (request, response, next) => {
+  try {
+    const query = failedNotificationsQuerySchema.parse(request.query);
+    const notifications = await getFailedNotifications(query);
+
+    request.log.info(
+      {
+        tenantId: query.tenantId ?? null,
+        limit: query.limit,
+        failedCount: notifications.length
+      },
+      "Fetched failed notifications"
+    );
+
+    response.json({
+      data: notifications.map(serializeNotification)
     });
   } catch (error) {
     next(error);
@@ -34,6 +75,16 @@ notificationsRouter.get("/:id", async (request, response, next) => {
       });
       return;
     }
+
+    request.log.info(
+      {
+        notificationId: notification.id,
+        tenantId: notification.tenantId,
+        userId: notification.userId,
+        status: notification.status
+      },
+      "Fetched notification"
+    );
 
     response.json({
       data: serializeNotification(notification)

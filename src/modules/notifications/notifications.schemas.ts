@@ -24,4 +24,9 @@ export const notificationParamsSchema = z.object({
   id: z.string().trim().min(1)
 });
 
+export const failedNotificationsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  tenantId: z.string().trim().min(1).optional()
+});
+
 export type CreateNotificationInput = z.infer<typeof createNotificationSchema>;
