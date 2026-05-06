@@ -10,7 +10,7 @@ import { startWorker, shutdownWorker } from "../src/worker-app.js";
 test("notification create flow reaches SENT with recorded delivery attempt", async () => {
   const app = createApp();
   const server = startHttpServer(app, 0);
-  const worker = startWorker();
+  const workerRuntime = startWorker({ metricsPort: 0 });
 
   await new Promise<void>((resolve) => {
     server.once("listening", () => resolve());
@@ -20,6 +20,7 @@ test("notification create flow reaches SENT with recorded delivery attempt", asy
   assert.ok(address && typeof address === "object");
 
   const notificationId = `test-${Date.now()}`;
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const response = await fetch(`http://127.0.0.1:${address.port}/notifications`, {
     method: "POST",
     headers: {
@@ -29,7 +30,7 @@ test("notification create flow reaches SENT with recorded delivery attempt", asy
     body: JSON.stringify({
       tenantId: "test-tenant",
       userId: `user-${Date.now()}`,
-      userEmail: "integration@example.com",
+      userEmail: `integration-${uniqueSuffix}@example.com`,
       channel: "EMAIL",
       subject: "Integration",
       body: "<p>Integration flow</p>",
@@ -74,6 +75,6 @@ test("notification create flow reaches SENT with recorded delivery attempt", asy
         resolve();
       });
     }),
-    shutdownWorker(worker)
+    shutdownWorker(workerRuntime)
   ]);
 });

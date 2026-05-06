@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import { serializeNotification } from "../modules/notifications/notifications.presenter.js";
+import { notificationsAcceptedTotal } from "../lib/metrics.js";
 import {
   createNotificationSchema,
   failedNotificationsQuerySchema,
@@ -18,6 +19,12 @@ notificationsRouter.post("/", async (request, response, next) => {
   try {
     const input = createNotificationSchema.parse(request.body);
     const result = await createNotification(input);
+
+    notificationsAcceptedTotal.inc({
+      tenant_id: result.notification.tenantId,
+      channel: result.notification.channel,
+      duplicate: String(result.duplicate)
+    });
 
     request.log.info(
       {

@@ -7,13 +7,16 @@ import { pinoHttp } from "pino-http";
 
 import { logger } from "./lib/logger.js";
 import { HttpError } from "./lib/http-errors.js";
+import { initializeMetrics, metricsMiddleware } from "./lib/metrics.js";
 import { healthRouter } from "./routes/health.js";
+import { metricsRouter } from "./routes/metrics.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { preferencesRouter } from "./routes/preferences.js";
 import { notificationRateLimitMiddleware } from "./lib/rate-limit.js";
 import { ZodError } from "zod";
 
 export function createApp() {
+  initializeMetrics("api");
   const app = express();
 
   app.disable("x-powered-by");
@@ -37,6 +40,7 @@ export function createApp() {
     response.setHeader("X-Request-Id", String(request.id));
     next();
   });
+  app.use(metricsMiddleware());
 
   app.get("/", (_request, response) => {
     response.json({
@@ -47,6 +51,7 @@ export function createApp() {
   });
 
   app.use("/health", healthRouter);
+  app.use("/metrics", metricsRouter);
   app.use("/notifications", notificationRateLimitMiddleware, notificationsRouter);
   app.use("/users", preferencesRouter);
 

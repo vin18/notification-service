@@ -3,6 +3,12 @@ import { UnrecoverableError } from "bullmq";
 
 import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
+import {
+  notificationDeliveryAttemptsTotal,
+  notificationDeliveryDurationMs,
+  notificationQueueInFlight,
+  notificationStatusTransitionsTotal
+} from "../../lib/metrics.js";
 import { prisma } from "../../lib/prisma.js";
 import { EmailDeliveryError } from "../../providers/email/errors.js";
 import { createEmailProvider } from "../../providers/email/index.js";
@@ -10,6 +16,9 @@ import { createEmailProvider } from "../../providers/email/index.js";
 const emailProvider = createEmailProvider();
 
 export async function processNotification(notificationId: string) {
+  const processingStartedAt = performance.now();
+  notificationQueueInFlight.inc();
+
   const notification = await prisma.notification.findUnique({
     where: {
       id: notificationId
@@ -21,11 +30,13 @@ export async function processNotification(notificationId: string) {
 
   if (!notification) {
     logger.warn({ notificationId }, "Notification not found for job");
+    notificationQueueInFlight.dec();
     return;
   }
 
   if (notification.status === NotificationStatus.SENT) {
     logger.info({ notificationId }, "Notification already sent, skipping duplicate job");
+    notificationQueueInFlight.dec();
     return;
   }
 
@@ -38,6 +49,7 @@ export async function processNotification(notificationId: string) {
       { notificationId, scheduledAt: notification.scheduledAt.toISOString() },
       "Notification job arrived before scheduled time, leaving for delayed processing"
     );
+    notificationQueueInFlight.dec();
     return;
   }
 
@@ -62,6 +74,10 @@ export async function processNotification(notificationId: string) {
     });
 
     logger.info({ notificationId, userId: notification.userId }, "Notification skipped due to preferences");
+    notificationStatusTransitionsTotal.inc({
+      status: NotificationStatus.SKIPPED
+    });
+    notificationQueueInFlight.dec();
     return;
   }
 
@@ -73,6 +89,9 @@ export async function processNotification(notificationId: string) {
       status: NotificationStatus.PROCESSING,
       failureReason: null
     }
+  });
+  notificationStatusTransitionsTotal.inc({
+    status: NotificationStatus.PROCESSING
   });
 
   const currentAttempt = await prisma.deliveryAttempt.count({
@@ -121,6 +140,21 @@ export async function processNotification(notificationId: string) {
         }
       })
     ]);
+    notificationDeliveryAttemptsTotal.inc({
+      provider: env.EMAIL_PROVIDER,
+      outcome: "success",
+      retryable: "false"
+    });
+    notificationDeliveryDurationMs.observe(
+      {
+        provider: env.EMAIL_PROVIDER,
+        outcome: "success"
+      },
+      performance.now() - processingStartedAt
+    );
+    notificationStatusTransitionsTotal.inc({
+      status: NotificationStatus.SENT
+    });
 
     logger.info(
       {
@@ -160,6 +194,21 @@ export async function processNotification(notificationId: string) {
         }
       })
     ]);
+    notificationDeliveryAttemptsTotal.inc({
+      provider: env.EMAIL_PROVIDER,
+      outcome: "failure",
+      retryable: String(retryable)
+    });
+    notificationDeliveryDurationMs.observe(
+      {
+        provider: env.EMAIL_PROVIDER,
+        outcome: "failure"
+      },
+      performance.now() - processingStartedAt
+    );
+    notificationStatusTransitionsTotal.inc({
+      status: retryable ? NotificationStatus.RETRYING : NotificationStatus.FAILED
+    });
 
     logger.error(
       {
@@ -174,9 +223,13 @@ export async function processNotification(notificationId: string) {
     );
 
     if (!retryable) {
+      notificationQueueInFlight.dec();
       throw new UnrecoverableError(errorMessage);
     }
 
+    notificationQueueInFlight.dec();
     throw error;
   }
+
+  notificationQueueInFlight.dec();
 }

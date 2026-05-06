@@ -1,13 +1,13 @@
 import { logger } from "./lib/logger.js";
 import { startWorker, shutdownWorker } from "./worker-app.js";
 
-const worker = startWorker();
+const workerRuntime = startWorker();
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down worker gracefully");
 
   try {
-    await shutdownWorker(worker);
+    await shutdownWorker(workerRuntime);
 
     logger.info("Worker shutdown complete");
     process.exit(0);

@@ -51,7 +51,7 @@ Do not do in phase 1:
 
 - Runtime: `Node.js`
 - Language: `TypeScript`
-- Web framework: `Fastify`
+- Web framework: `Express.js`
 - Database: `PostgreSQL`
 - Queue: `BullMQ` on `Redis`
 - ORM: `Prisma`
@@ -61,7 +61,7 @@ Do not do in phase 1:
 
 Why these choices:
 
-- `Fastify` is quick to scaffold and production-friendly
+- `Express.js` is quick to scaffold and production-friendly
 - `BullMQ` gives you retries, delayed jobs, and workers fast
 - `Postgres` gives you strong persistence and great developer speed
 - `Redis` is enough for a clean queue-backed MVP
