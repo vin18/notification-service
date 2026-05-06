@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: notification-service-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run prisma:generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LOG_LEVEL
+        value: info
+      - key: EMAIL_PROVIDER
+        value: mock
+      - key: EMAIL_FROM
+        value: notifications@example.com
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+
+  - type: worker
+    name: notification-service-worker
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run prisma:generate && npm run build
+    startCommand: npm run worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: EMAIL_PROVIDER
+        value: mock
+      - key: EMAIL_FROM
+        value: notifications@example.com
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
