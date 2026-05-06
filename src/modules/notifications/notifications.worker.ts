@@ -1,8 +1,10 @@
 import { Channel, DeliveryAttemptStatus, NotificationStatus } from "@prisma/client";
+import { UnrecoverableError } from "bullmq";
 
 import { env } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
+import { EmailDeliveryError } from "../../providers/email/errors.js";
 import { createEmailProvider } from "../../providers/email/index.js";
 
 const emailProvider = createEmailProvider();
@@ -28,7 +30,15 @@ export async function processNotification(notificationId: string) {
   }
 
   if (notification.channel !== Channel.EMAIL) {
-    throw new Error(`Unsupported channel: ${notification.channel}`);
+    throw new UnrecoverableError(`Unsupported channel: ${notification.channel}`);
+  }
+
+  if (notification.scheduledAt && notification.scheduledAt.getTime() > Date.now()) {
+    logger.info(
+      { notificationId, scheduledAt: notification.scheduledAt.toISOString() },
+      "Notification job arrived before scheduled time, leaving for delayed processing"
+    );
+    return;
   }
 
   const preference = await prisma.userPreference.findUnique({
@@ -123,6 +133,9 @@ export async function processNotification(notificationId: string) {
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown delivery error";
+    const retryable = error instanceof EmailDeliveryError
+      ? error.retryable
+      : true;
 
     await prisma.$transaction([
       prisma.deliveryAttempt.update({
@@ -140,7 +153,7 @@ export async function processNotification(notificationId: string) {
           id: notificationId
         },
         data: {
-          status: NotificationStatus.RETRYING,
+          status: retryable ? NotificationStatus.RETRYING : NotificationStatus.FAILED,
           failureReason: errorMessage
         }
       })
@@ -156,6 +169,10 @@ export async function processNotification(notificationId: string) {
       },
       "Notification delivery failed"
     );
+
+    if (!retryable) {
+      throw new UnrecoverableError(errorMessage);
+    }
 
     throw error;
   }

@@ -1,4 +1,5 @@
 import { env } from "../../config/env.js";
+import { EmailDeliveryError } from "./errors.js";
 
 import type { EmailProvider, SendEmailInput, SendEmailResult } from "./types.js";
 
@@ -30,7 +31,10 @@ export class ResendEmailProvider implements EmailProvider {
     const payload = await response.json() as ResendResponse;
 
     if (!response.ok || !payload.id) {
-      throw new Error(payload.message ?? "Resend request failed");
+      throw new EmailDeliveryError(
+        payload.message ?? "Resend request failed",
+        response.status >= 500 || response.status === 429
+      );
     }
 
     return {

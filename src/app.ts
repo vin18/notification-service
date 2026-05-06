@@ -6,8 +6,10 @@ import type { Request } from "express";
 import { pinoHttp } from "pino-http";
 
 import { logger } from "./lib/logger.js";
+import { HttpError } from "./lib/http-errors.js";
 import { healthRouter } from "./routes/health.js";
 import { notificationsRouter } from "./routes/notifications.js";
+import { preferencesRouter } from "./routes/preferences.js";
 import { ZodError } from "zod";
 
 export function createApp() {
@@ -38,12 +40,20 @@ export function createApp() {
 
   app.use("/health", healthRouter);
   app.use("/notifications", notificationsRouter);
+  app.use("/users", preferencesRouter);
 
   app.use((error: Error, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
     if (error instanceof ZodError) {
       response.status(400).json({
         error: "Invalid request",
         details: error.flatten()
+      });
+      return;
+    }
+
+    if (error instanceof HttpError) {
+      response.status(error.statusCode).json({
+        error: error.message
       });
       return;
     }
